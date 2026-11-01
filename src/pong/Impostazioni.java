@@ -28,7 +28,18 @@ public record Impostazioni(int puntiPerVincere, int scartoMinimo, int velocitaPa
      * dice quale valore è sbagliato e perché.
      */
     public Impostazioni {
-        // scrivete qui
+        if (!nelIntervallo("puntiPerVincere", puntiPerVincere)) {
+            throw new IllegalArgumentException("puntiPerVincere vale " + puntiPerVincere
+                    + ", ma deve essere fra 1 e 99");
+        }
+        if (!nelIntervallo("scartoMinimo", scartoMinimo)) {
+            throw new IllegalArgumentException("scartoMinimo vale " + scartoMinimo
+                    + ", ma deve essere fra 1 e 10");
+        }
+        if (!nelIntervallo("velocitaPalla", velocitaPalla)) {
+            throw new IllegalArgumentException("velocitaPalla vale " + velocitaPalla
+                    + ", ma deve essere fra 1 e 20");
+        }
     }
 
     /**
@@ -51,7 +62,71 @@ public record Impostazioni(int puntiPerVincere, int scartoMinimo, int velocitaPa
      * Se ci sono errori in più righe, il messaggio è quello della riga più in alto.
      */
     public static Impostazioni leggi(List<String> righe) {
-        return STANDARD; // scrivete qui
+        int punti = STANDARD.puntiPerVincere();
+        int scarto = STANDARD.scartoMinimo();
+        int velocita = STANDARD.velocitaPalla();
+        boolean vistoPunti = false;
+        boolean vistoScarto = false;
+        boolean vistoVelocita = false;
+
+        for (int i = 0; i < righe.size(); i++) {
+            int n = i + 1;
+            String riga = righe.get(i).trim();
+
+            // righe da ignorare: vuote o commenti
+            if (riga.isEmpty() || riga.startsWith("#")) {
+                continue;
+            }
+
+            // 1. manca il segno =
+            int uguale = riga.indexOf('=');
+            if (uguale == -1) {
+                throw new IllegalArgumentException("riga " + n + ": manca il segno =");
+            }
+            String chiave = riga.substring(0, uguale).trim();
+            String testo = riga.substring(uguale + 1).trim();
+
+            // 2. la chiave non è una delle tre
+            if (!chiave.equals("puntiPerVincere") && !chiave.equals("scartoMinimo")
+                    && !chiave.equals("velocitaPalla")) {
+                throw new IllegalArgumentException("riga " + n + ": chiave sconosciuta «" + chiave + "»");
+            }
+
+            // 3. il valore non è un numero intero
+            int valore;
+            try {
+                valore = Integer.parseInt(testo);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("riga " + n + ": «" + testo + "» non è un numero intero");
+            }
+
+            // 4. la chiave c'era già
+            if ((chiave.equals("puntiPerVincere") && vistoPunti)
+                    || (chiave.equals("scartoMinimo") && vistoScarto)
+                    || (chiave.equals("velocitaPalla") && vistoVelocita)) {
+                throw new IllegalArgumentException("riga " + n + ": chiave ripetuta «" + chiave + "»");
+            }
+
+            // 5. il valore è fuori dal suo intervallo
+            if (!nelIntervallo(chiave, valore)) {
+                throw new IllegalArgumentException("riga " + n + ": " + chiave + " vale " + valore
+                        + ", fuori dal suo intervallo");
+            }
+
+            // riga giusta: salvo il valore e mi ricordo che la chiave l'ho vista
+            if (chiave.equals("puntiPerVincere")) {
+                punti = valore;
+                vistoPunti = true;
+            } else if (chiave.equals("scartoMinimo")) {
+                scarto = valore;
+                vistoScarto = true;
+            } else {
+                velocita = valore;
+                vistoVelocita = true;
+            }
+        }
+
+        return new Impostazioni(punti, scarto, velocita);
     }
 
     /**
@@ -62,5 +137,15 @@ public record Impostazioni(int puntiPerVincere, int scartoMinimo, int velocitaPa
      */
     public static Impostazioni daFile(Path file) throws IOException {
         return leggi(Files.readAllLines(file));
+    }
+
+    /** Dice se valore è nell'intervallo della chiave (estremi compresi). Usato da leggi e dal costruttore. */
+    private static boolean nelIntervallo(String chiave, int valore) {
+        switch (chiave) {
+            case "puntiPerVincere": return valore >= 1 && valore <= 99;
+            case "scartoMinimo":    return valore >= 1 && valore <= 10;
+            case "velocitaPalla":   return valore >= 1 && valore <= 20;
+            default:                return false;
+        }
     }
 }
